@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/bls.js": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
