@@ -31,7 +31,6 @@
       min-height: 100vh;
     }
 
-    /* ── Header ── */
     header {
       background: linear-gradient(135deg, var(--blue) 0%, var(--blue-lt) 100%);
       color: #fff;
@@ -46,7 +45,6 @@
     header p  { font-size: .85rem; opacity: .8; margin-top: 2px; }
     #last-updated { font-size: .8rem; opacity: .7; white-space: nowrap; }
 
-    /* ── Layout ── */
     main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
 
     section + section { margin-top: 32px; }
@@ -68,7 +66,6 @@
       background: var(--gray-200);
     }
 
-    /* ── KPI cards ── */
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -94,7 +91,6 @@
 
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-    /* ── Charts row ── */
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -109,7 +105,6 @@
     .chart-card h3 { font-size: .9rem; font-weight: 700; color: var(--gray-700); margin-bottom: 14px; }
     .chart-wrap { position: relative; height: 280px; }
 
-    /* ── Table ── */
     .table-card {
       background: #fff;
       border-radius: var(--radius);
@@ -137,12 +132,10 @@
     tbody td.bold { font-weight: 700; color: var(--gray-900); }
     tbody tr:last-child td { border-bottom: none; }
 
-    /* bar-in-cell */
     .bar-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
     .bar-bg { width: 80px; height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
     .bar-fill { height: 100%; border-radius: 4px; background: var(--blue-lt); }
 
-    /* ── Status / error banner ── */
     #status-bar {
       display: none;
       background: #fffbeb;
@@ -154,7 +147,6 @@
       margin-bottom: 16px;
     }
 
-    /* ── Footer ── */
     footer {
       text-align: center;
       font-size: .75rem;
@@ -180,7 +172,6 @@
 <main>
   <div id="status-bar"></div>
 
-  <!-- KPIs -->
   <section>
     <div class="section-title">Region at a Glance</div>
     <div class="kpi-grid">
@@ -217,7 +208,6 @@
     </div>
   </section>
 
-  <!-- Charts -->
   <section>
     <div class="section-title">County Profiles</div>
     <div class="charts-grid">
@@ -240,7 +230,6 @@
     </div>
   </section>
 
-  <!-- Table -->
   <section>
     <div class="section-title">County Detail Table</div>
     <div class="table-card">
@@ -275,7 +264,6 @@
 </footer>
 
 <script>
-// ── SE Minnesota counties (FIPS state=27) ────────────────────────────────────
 const COUNTIES = [
   { name: 'Dodge',    fips: '039' },
   { name: 'Fillmore', fips: '045' },
@@ -290,18 +278,10 @@ const COUNTIES = [
   { name: 'Winona',   fips: '169' },
 ];
 
-// ACS variables
-// B01003_001E = total population
-// B19013_001E = median household income
-// B01002_001E = median age
-// B25064_001E = median gross rent
-// B23025_003E = civilian labor force
-// B23025_005E = unemployed
 const ACS_VARS = 'B01003_001E,B19013_001E,B01002_001E,B25064_001E,B23025_003E,B23025_005E';
 const ACS_YEAR = '2023';
 const STATE = '27';
 
-// ── Utilities ────────────────────────────────────────────────────────────────
 const fmt = {
   num:  v => v == null || v < 0 ? 'N/A' : Number(v).toLocaleString(),
   usd:  v => v == null || v < 0 ? 'N/A' : '$' + Number(v).toLocaleString(),
@@ -321,7 +301,6 @@ function setKpi(id, val) {
   el.classList.remove('loading');
 }
 
-// ── Fetch Census ACS ─────────────────────────────────────────────────────────
 async function fetchACS() {
   const countyList = COUNTIES.map(c => c.fips).join(',');
   const url =
@@ -332,7 +311,7 @@ async function fetchACS() {
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Census API ${res.status}`);
-  const rows = await res.json(); // first row = headers
+  const rows = await res.json();
   const headers = rows[0];
 
   const idx = k => headers.indexOf(k);
@@ -361,11 +340,10 @@ async function fetchACS() {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// ── Chart helpers ─────────────────────────────────────────────────────────────
 const PALETTE = [
   '#1a4f8a','#2d6dbf','#3b82c4','#5b9bd5',
   '#2e7d46','#4caf6e','#6abf85','#8dd4a2',
-  '#b45309','#d97706','#f59e0b','#fbbf24',
+  '#b45309','#d97706','#f59e0b',
 ];
 
 function makeBarChart(canvasId, labels, data, labelStr, color, prefix = '', suffix = '') {
@@ -407,7 +385,6 @@ function makeBarChart(canvasId, labels, data, labelStr, color, prefix = '', suff
   });
 }
 
-// ── Table render ──────────────────────────────────────────────────────────────
 function renderTable(data) {
   const maxPop = Math.max(...data.map(d => d.population));
   const tbody = document.getElementById('county-table-body');
@@ -430,7 +407,6 @@ function renderTable(data) {
   }).join('');
 }
 
-// ── KPI summary ───────────────────────────────────────────────────────────────
 function renderKPIs(data) {
   const totalPop  = data.reduce((s, d) => s + (d.population || 0), 0);
   const avgIncome = data.reduce((s, d) => s + (d.income > 0 ? d.income : 0), 0) /
@@ -451,36 +427,29 @@ function renderKPIs(data) {
   setKpi('kpi-largest', largest.name);
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('last-updated').textContent =
     'Updated ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   try {
     const data = await fetchACS();
-
     renderKPIs(data);
     renderTable(data);
-
     const names   = data.map(d => d.name);
     const pops    = data.map(d => d.population);
     const incomes = data.map(d => d.income > 0 ? d.income : null);
     const unemps  = data.map(d => d.unempRate != null ? +d.unempRate.toFixed(2) : null);
     const ages    = data.map(d => d.age > 0 ? d.age : null);
-
     makeBarChart('chart-pop',    names, pops,    'Population',    null, '',  '');
     makeBarChart('chart-income', names, incomes, 'Median Income', null, '$', '');
     makeBarChart('chart-unemp', names, unemps,  'Unemp. Rate',   null, '',  '%');
     makeBarChart('chart-age',   names, ages,    'Median Age',    null, '',  ' yrs');
-
   } catch (err) {
     console.error(err);
     showStatus(
       `⚠ Could not load live Census data (${err.message}). ` +
-      `Check your network or try opening the dashboard from a web server. ` +
-      `Census API: https://api.census.gov`
+      `Check your network or try opening the dashboard from a web server.`
     );
-    // Show placeholder skeletons so the page still looks useful
     ['kpi-pop','kpi-income','kpi-unemp','kpi-age','kpi-rent','kpi-largest']
       .forEach(id => setKpi(id, '—'));
     document.getElementById('county-table-body').innerHTML =
