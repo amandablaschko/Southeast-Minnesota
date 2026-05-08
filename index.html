@@ -3,25 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Southeast Minnesota Labor Market Dashboard</title>
+  <title>Southeast Minnesota Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --blue:     #1a4f8a;
-      --blue-lt:  #2d6dbf;
-      --green:    #2e7d46;
-      --amber:    #b45309;
-      --gray-50:  #f8fafc;
-      --gray-100: #f1f5f9;
-      --gray-200: #e2e8f0;
-      --gray-400: #94a3b8;
-      --gray-500: #64748b;
-      --gray-700: #334155;
-      --gray-900: #0f172a;
-      --radius:   8px;
-      --shadow:   0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+      --blue:    #1a4f8a;
+      --blue-lt: #2d6dbf;
+      --green:   #166534;
+      --green-lt:#dcfce7;
+      --amber:   #92400e;
+      --amber-lt:#fef3c7;
+      --gray-50: #f8fafc;
+      --gray-100:#f1f5f9;
+      --gray-200:#e2e8f0;
+      --gray-400:#94a3b8;
+      --gray-500:#64748b;
+      --gray-700:#334155;
+      --gray-900:#0f172a;
+      --radius:  8px;
+      --shadow:  0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.07);
     }
 
     body {
@@ -34,267 +36,334 @@
     header {
       background: linear-gradient(135deg, var(--blue) 0%, var(--blue-lt) 100%);
       color: #fff;
-      padding: 20px 32px;
+      padding: 22px 32px 0;
+    }
+    .header-top {
       display: flex;
-      align-items: flex-start;
       justify-content: space-between;
+      align-items: flex-start;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
+      margin-bottom: 20px;
     }
-    header h1  { font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
-    header p   { font-size: .85rem; opacity: .8; margin-top: 3px; }
-    .header-meta { text-align: right; font-size: .78rem; opacity: .75; line-height: 1.6; }
-    .header-meta a { color: #fff; }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p  { font-size: .83rem; opacity: .8; margin-top: 3px; }
+    #data-period { font-size: .78rem; opacity: .7; text-align: right; }
 
-    .source-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+    .tabs { display: flex; gap: 2px; margin-top: 4px; }
+    .tab-btn {
       background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.3);
-      border-radius: 20px;
-      padding: 4px 12px;
-      font-size: .75rem;
-      margin-top: 6px;
+      border: none;
+      color: rgba(255,255,255,.8);
+      padding: 10px 20px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      transition: background .15s, color .15s;
     }
-    .source-badge::before { content: '📊'; }
+    .tab-btn:hover  { background: rgba(255,255,255,.25); color: #fff; }
+    .tab-btn.active { background: var(--gray-100); color: var(--blue); }
 
     main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
-    section + section { margin-top: 32px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    section + section { margin-top: 28px; }
 
-    .section-title {
-      font-size: .85rem;
+    .section-label {
+      font-size: .72rem;
       font-weight: 700;
-      color: var(--gray-500);
+      color: var(--gray-400);
       text-transform: uppercase;
-      letter-spacing: .07em;
-      margin-bottom: 14px;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
-    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--gray-200); }
+    .section-label::after { content:''; flex:1; height:1px; background:var(--gray-200); }
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
     }
-    .kpi-card {
+    .kpi {
       background: #fff;
       border-radius: var(--radius);
-      padding: 18px 20px;
+      padding: 16px 18px;
       box-shadow: var(--shadow);
       border-top: 3px solid var(--blue);
     }
-    .kpi-card.green { border-color: var(--green); }
-    .kpi-card.amber { border-color: var(--amber); }
-    .kpi-label { font-size: .72rem; color: var(--gray-500); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
-    .kpi-value { font-size: 2rem; font-weight: 800; color: var(--gray-900); line-height: 1; }
-    .kpi-value.skeleton { color: var(--gray-200); background: var(--gray-200); border-radius: 4px; animation: shimmer 1.3s ease-in-out infinite; user-select: none; }
-    .kpi-sub { font-size: .75rem; color: var(--gray-400); margin-top: 5px; }
+    .kpi.green { border-color: #16a34a; }
+    .kpi.amber { border-color: #d97706; }
+    .kpi-label { font-size: .7rem; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; }
+    .kpi-value { font-size: 1.85rem; font-weight: 800; color: var(--gray-900); margin: 4px 0 2px; line-height: 1; }
+    .kpi-note  { font-size: .72rem; color: var(--gray-400); }
+    .kpi-value.loading { color: var(--gray-200); background: var(--gray-200); border-radius: 3px; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-    @keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:.45} }
-
-    .charts-grid {
+    .chart-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 14px;
     }
-    .chart-card {
+    .chart-box {
       background: #fff;
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 20px 20px 16px;
+      padding: 18px 18px 14px;
     }
-    .chart-card h3 { font-size: .88rem; font-weight: 700; color: var(--gray-700); margin-bottom: 4px; }
-    .chart-card .chart-sub { font-size: .72rem; color: var(--gray-400); margin-bottom: 14px; }
-    .chart-wrap { position: relative; height: 260px; }
+    .chart-box h3    { font-size: .85rem; font-weight: 700; color: var(--gray-700); }
+    .chart-box small { font-size: .7rem; color: var(--gray-400); display: block; margin: 2px 0 12px; }
+    .chart-wrap { position: relative; height: 250px; }
 
-    .table-card {
+    .table-box {
       background: #fff;
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       overflow: hidden;
     }
-    .table-header { padding: 16px 20px 0; }
-    .table-header h3 { font-size: .88rem; font-weight: 700; color: var(--gray-700); }
-    .table-header p  { font-size: .72rem; color: var(--gray-400); margin-top: 2px; margin-bottom: 12px; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
-    thead th {
+    .table-box-header { padding: 14px 18px 0; }
+    .table-box-header h3 { font-size: .85rem; font-weight: 700; color: var(--gray-700); }
+    .table-box-header p  { font-size: .7rem; color: var(--gray-400); margin: 2px 0 10px; }
+    .table-box-header a  { color: var(--blue-lt); text-decoration: none; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    th {
       background: var(--gray-50);
       color: var(--gray-500);
-      font-size: .7rem;
+      font-size: .69rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .05em;
-      padding: 9px 16px;
+      padding: 8px 14px;
       text-align: left;
       border-bottom: 1px solid var(--gray-200);
-      white-space: nowrap;
     }
-    thead th.r { text-align: right; }
-    tbody tr { transition: background .1s; }
-    tbody tr:hover { background: var(--gray-50); }
-    tbody td { padding: 10px 16px; border-bottom: 1px solid var(--gray-200); color: var(--gray-700); }
-    tbody tr:last-child td { border-bottom: none; }
-    td.county { font-weight: 700; color: var(--gray-900); }
+    th.r { text-align: right; }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--gray-200); color: var(--gray-700); }
     td.r { text-align: right; font-variant-numeric: tabular-nums; }
-    td.rate { text-align: right; font-weight: 700; }
-    .rate-chip {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: .78rem;
-      font-weight: 700;
-    }
-    .rate-low  { background: #dcfce7; color: #166534; }
-    .rate-mid  { background: #fef9c3; color: #854d0e; }
-    .rate-high { background: #fee2e2; color: #991b1b; }
+    td.bold { font-weight: 700; color: var(--gray-900); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-50); }
 
-    #status {
+    .chip { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: .76rem; font-weight: 700; }
+    .chip-green { background: var(--green-lt); color: var(--green); }
+    .chip-amber { background: var(--amber-lt); color: var(--amber); }
+    .chip-red   { background: #fee2e2; color: #991b1b; }
+
+    .source-note {
+      font-size: .75rem;
+      color: var(--gray-400);
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      line-height: 1.7;
+    }
+    .source-note a { color: var(--blue-lt); text-decoration: none; }
+    .source-note a:hover { text-decoration: underline; }
+
+    .error-bar {
       display: none;
       background: #fff7ed;
       border: 1px solid #fed7aa;
       color: #9a3412;
       padding: 12px 16px;
       border-radius: var(--radius);
-      font-size: .84rem;
+      font-size: .83rem;
       margin-bottom: 20px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
-
-    .data-note {
-      background: var(--gray-50);
-      border: 1px solid var(--gray-200);
-      border-radius: var(--radius);
-      padding: 14px 18px;
-      font-size: .78rem;
-      color: var(--gray-500);
-      line-height: 1.7;
-    }
-    .data-note strong { color: var(--gray-700); }
-    .data-note a { color: var(--blue-lt); }
-
-    footer {
-      text-align: center;
-      font-size: .75rem;
-      color: var(--gray-400);
-      padding: 20px 16px 32px;
-    }
-    footer a { color: var(--blue-lt); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+    .error-bar a { color: #9a3412; }
   </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>Southeast Minnesota Labor Market Dashboard</h1>
-    <p>Employment &amp; Unemployment &mdash; 11-County Region</p>
-    <div class="source-badge">
-      Bureau of Labor Statistics &mdash; Local Area Unemployment Statistics (LAUS)
+  <div class="header-top">
+    <div>
+      <h1>Southeast Minnesota Dashboard</h1>
+      <p>11-County Region &mdash; Dodge, Fillmore, Freeborn, Goodhue, Houston, Mower, Olmsted, Rice, Steele, Wabasha, Winona</p>
     </div>
+    <div id="data-period"></div>
   </div>
-  <div class="header-meta">
-    <div id="data-period">Loading&hellip;</div>
-    <div>Same data published by <a href="https://mn.gov/deed/data/data-tools/laus/" target="_blank" rel="noopener">MN DEED</a></div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="labor">Labor Market</button>
+    <button class="tab-btn" data-tab="demographics">Demographics</button>
   </div>
 </header>
 
 <main>
-  <div id="status"></div>
 
-  <section>
-    <div class="section-title">Region Summary</div>
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-label">Total Labor Force</div>
-        <div class="kpi-value skeleton" id="k-lf">000,000</div>
-        <div class="kpi-sub">All 11 counties combined</div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-label">Total Employed</div>
-        <div class="kpi-value skeleton" id="k-emp">000,000</div>
-        <div class="kpi-sub">People working</div>
-      </div>
-      <div class="kpi-card amber">
-        <div class="kpi-label">Total Unemployed</div>
-        <div class="kpi-value skeleton" id="k-unemp">00,000</div>
-        <div class="kpi-sub">Actively seeking work</div>
-      </div>
-      <div class="kpi-card amber">
-        <div class="kpi-label">Avg Unemployment Rate</div>
-        <div class="kpi-value skeleton" id="k-rate">0.0%</div>
-        <div class="kpi-sub">Region-wide average</div>
-      </div>
-    </div>
-  </section>
+  <!-- LABOR MARKET TAB -->
+  <div class="tab-panel active" id="tab-labor">
+    <div class="error-bar" id="err-labor"></div>
 
-  <section>
-    <div class="section-title">County Comparison</div>
-    <div class="charts-grid">
-      <div class="chart-card">
-        <h3>Unemployment Rate by County</h3>
-        <div class="chart-sub">Not seasonally adjusted &mdash; latest month available</div>
-        <div class="chart-wrap"><canvas id="chart-rate"></canvas></div>
+    <section>
+      <div class="section-label">Region Summary</div>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Total Labor Force</div>
+          <div class="kpi-value loading" id="l-lf">———</div>
+          <div class="kpi-note">All 11 counties</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">Total Employed</div>
+          <div class="kpi-value loading" id="l-emp">———</div>
+          <div class="kpi-note">People currently working</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">Total Unemployed</div>
+          <div class="kpi-value loading" id="l-unemp">———</div>
+          <div class="kpi-note">Actively seeking work</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">Avg Unemployment Rate</div>
+          <div class="kpi-value loading" id="l-rate">——</div>
+          <div class="kpi-note">Region-wide</div>
+        </div>
       </div>
-      <div class="chart-card">
-        <h3>Labor Force by County</h3>
-        <div class="chart-sub">Total residents employed or seeking work</div>
-        <div class="chart-wrap"><canvas id="chart-lf"></canvas></div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section>
-    <div class="section-title">County Detail</div>
-    <div class="table-card">
-      <div class="table-header">
-        <h3>All 11 SE Minnesota Counties</h3>
-        <p>Source: BLS LAUS &mdash; same figures MN DEED publishes on their website</p>
+    <section>
+      <div class="section-label">County Comparison</div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>Unemployment Rate by County</h3>
+          <small>Not seasonally adjusted &mdash; latest month</small>
+          <div class="chart-wrap"><canvas id="c-rate"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h3>Labor Force by County</h3>
+          <small>Total residents employed or seeking work</small>
+          <div class="chart-wrap"><canvas id="c-lf"></canvas></div>
+        </div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>County</th>
-              <th class="r">Labor Force</th>
-              <th class="r">Employed</th>
-              <th class="r">Unemployed</th>
-              <th class="r">Rate</th>
-            </tr>
-          </thead>
-          <tbody id="tbody">
-            <tr><td colspan="5" style="text-align:center;padding:36px;color:var(--gray-400)">Loading&hellip;</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section>
-    <div class="data-note">
-      <strong>About this data:</strong>
-      Figures come directly from the
-      <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener">BLS Local Area Unemployment Statistics (LAUS)</a>
-      program, the same source Minnesota DEED uses for its
-      <a href="https://mn.gov/deed/data/data-tools/laus/" target="_blank" rel="noopener">county unemployment tool</a>.
-      Data is not seasonally adjusted. Estimates are produced monthly using a model-based
-      approach combining Current Population Survey data, unemployment insurance records,
-      and Census Bureau estimates.
-      &nbsp;&bull;&nbsp;
-      <strong>Counties:</strong> Dodge, Fillmore, Freeborn, Goodhue, Houston, Mower, Olmsted, Rice, Steele, Wabasha, Winona.
-    </div>
-  </section>
+    <section>
+      <div class="section-label">County Detail</div>
+      <div class="table-box">
+        <div class="table-box-header">
+          <h3>Labor Market — All 11 Counties</h3>
+          <p>Source: <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener">Bureau of Labor Statistics LAUS</a> &mdash; same data MN DEED publishes</p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>County</th>
+                <th class="r">Labor Force</th>
+                <th class="r">Employed</th>
+                <th class="r">Unemployed</th>
+                <th class="r">Rate</th>
+              </tr>
+            </thead>
+            <tbody id="labor-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="source-note">
+        <strong>Data source:</strong>
+        <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener">BLS Local Area Unemployment Statistics (LAUS)</a> —
+        monthly county-level employment and unemployment estimates.
+        This is the same data the
+        <a href="https://mn.gov/deed/data/data-tools/laus/" target="_blank" rel="noopener">MN DEED LAUS tool</a>
+        publishes. Figures are not seasonally adjusted.
+      </div>
+    </section>
+  </div>
+
+  <!-- DEMOGRAPHICS TAB -->
+  <div class="tab-panel" id="tab-demographics">
+    <div class="error-bar" id="err-demo"></div>
+
+    <section>
+      <div class="section-label">Region Summary</div>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Total Population</div>
+          <div class="kpi-value loading" id="d-pop">———</div>
+          <div class="kpi-note">ACS 5-Year Estimate</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">Median Household Income</div>
+          <div class="kpi-value loading" id="d-inc">——</div>
+          <div class="kpi-note">Region average</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Median Age</div>
+          <div class="kpi-value loading" id="d-age">——</div>
+          <div class="kpi-note">Region average</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">Median Gross Rent</div>
+          <div class="kpi-value loading" id="d-rent">——</div>
+          <div class="kpi-note">Per month</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">County Comparison</div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>Population by County</h3>
+          <small>ACS 5-Year Estimates</small>
+          <div class="chart-wrap"><canvas id="c-pop"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h3>Median Household Income by County</h3>
+          <small>ACS 5-Year Estimates</small>
+          <div class="chart-wrap"><canvas id="c-inc"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">County Detail</div>
+      <div class="table-box">
+        <div class="table-box-header">
+          <h3>Demographics — All 11 Counties</h3>
+          <p>Source: <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau ACS 5-Year Estimates</a></p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>County</th>
+                <th class="r">Population</th>
+                <th class="r">Median Income</th>
+                <th class="r">Median Age</th>
+                <th class="r">Median Rent</th>
+              </tr>
+            </thead>
+            <tbody id="demo-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="source-note">
+        <strong>Data source:</strong>
+        <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau American Community Survey (ACS)</a>
+        5-Year Estimates — population, income, age, and housing data at the county level.
+        ACS estimates are updated annually and reflect a 5-year average.
+      </div>
+    </section>
+  </div>
+
 </main>
-
-<footer>
-  Data: <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener">U.S. Bureau of Labor Statistics — LAUS</a>
-  &nbsp;&bull;&nbsp;
-  Also published by <a href="https://mn.gov/deed/data/data-tools/laus/" target="_blank" rel="noopener">MN DEED</a>
-</footer>
 
 <script>
 const COUNTIES = [
@@ -311,157 +380,191 @@ const COUNTIES = [
   { name: 'Winona',   fips: '169' },
 ];
 
-const STATE = '27';
-const BLS_API = 'https://api.bls.gov/publicAPI/v2/timeseries/data/';
-
-function seriesId(fips, measure) {
-  return `LAUCN${STATE}${fips}00000000${measure}`;
-}
-
-const seriesA = [
-  ...COUNTIES.map(c => seriesId(c.fips, '03')),
-  ...COUNTIES.map(c => seriesId(c.fips, '05')),
-];
-const seriesB = [
-  ...COUNTIES.map(c => seriesId(c.fips, '06')),
-  ...COUNTIES.map(c => seriesId(c.fips, '04')),
-];
-
-async function fetchBLS(seriesList) {
-  const currentYear = new Date().getFullYear();
-  const res = await fetch(BLS_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      seriesid: seriesList,
-      startyear: String(currentYear - 1),
-      endyear: String(currentYear),
-    }),
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
   });
-  if (!res.ok) throw new Error(`BLS API error ${res.status}`);
-  const json = await res.json();
-  if (json.status !== 'REQUEST_SUCCEEDED') {
-    throw new Error(`BLS: ${json.message?.join(' ') || json.status}`);
-  }
-  return json.Results.series;
-}
+});
 
-function latest(series) {
-  if (!series || !series.data || series.data.length === 0) return null;
-  return series.data[0];
-}
-
-const num = v => v == null ? '—' : Number(v).toLocaleString();
-const pct = v => v == null ? '—' : Number(v).toFixed(1) + '%';
-
-function rateChip(rate) {
-  if (rate == null) return '—';
-  const r = Number(rate);
-  const cls = r < 3.5 ? 'rate-low' : r < 5 ? 'rate-mid' : 'rate-high';
-  return `<span class="rate-chip ${cls}">${r.toFixed(1)}%</span>`;
-}
+// Formatters
+const fmtNum = v => v == null || isNaN(v) ? '—' : Number(v).toLocaleString();
+const fmtUsd = v => v == null || v < 0    ? '—' : '$' + Number(v).toLocaleString();
+const fmtPct = v => v == null             ? '—' : Number(v).toFixed(1) + '%';
+const fmtAge = v => v == null || v < 0    ? '—' : Number(v).toFixed(1);
 
 function setKpi(id, val) {
   const el = document.getElementById(id);
-  el.textContent = val;
-  el.classList.remove('skeleton');
+  if (el) { el.textContent = val; el.classList.remove('loading'); }
 }
 
-function showError(msg) {
-  const el = document.getElementById('status');
-  el.innerHTML = `<strong>Could not load live data:</strong> ${msg}<br>
-    Check your connection, or view the data directly at
-    <a href="https://www.bls.gov/lau/" target="_blank">bls.gov/lau</a> or
-    <a href="https://mn.gov/deed/data/data-tools/laus/" target="_blank">MN DEED LAUS tool</a>.`;
-  el.style.display = 'block';
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.innerHTML = '<strong>Could not load data:</strong> ' + msg; el.style.display = 'block'; }
 }
 
-const COLORS = [
+function rateChip(r) {
+  if (r == null) return '—';
+  const cls = r < 3.5 ? 'chip-green' : r < 5 ? 'chip-amber' : 'chip-red';
+  return '<span class="chip ' + cls + '">' + r.toFixed(1) + '%</span>';
+}
+
+const PALETTE = [
   '#1a4f8a','#2563a8','#2d6dbf','#3b82c4','#4e94cc',
   '#2e7d46','#3d9958','#4caf6e','#6abf85','#8dd4a2','#b3e2bf',
 ];
 
-function barChart(id, labels, data, suffix) {
-  new Chart(document.getElementById(id), {
+function makeChart(id, labels, values, suffix, prefix) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{ data, backgroundColor: COLORS, borderRadius: 4, borderSkipped: false }],
-    },
+    data: { labels, datasets: [{ data: values, backgroundColor: PALETTE, borderRadius: 4, borderSkipped: false }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => Number(ctx.parsed.y).toLocaleString() + suffix } },
+        tooltip: { callbacks: { label: c => (prefix||'') + Number(c.parsed.y).toLocaleString() + (suffix||'') } },
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 10 } } },
         y: {
           grid: { color: '#e2e8f0' },
-          ticks: { font: { size: 10 }, callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k'+suffix : v+suffix },
+          ticks: { font: { size: 10 }, callback: v => {
+            const s = prefix||'';
+            if (v >= 1000000) return s+(v/1000000).toFixed(1)+'M'+(suffix||'');
+            if (v >= 1000)    return s+(v/1000).toFixed(0)+'k'+(suffix||'');
+            return s+v+(suffix||'');
+          }},
         },
       },
     },
   });
 }
 
-async function init() {
-  try {
-    const [resA, resB] = await Promise.all([fetchBLS(seriesA), fetchBLS(seriesB)]);
-    const byId = {};
-    [...resA, ...resB].forEach(s => { byId[s.seriesID] = s; });
+// BLS LAUS
+function blsSeries(fips, measure) {
+  return 'LAUCN27' + fips + '00000000' + measure;
+}
 
-    const data = COUNTIES.map(c => {
-      const rate  = latest(byId[seriesId(c.fips, '03')]);
-      const emp   = latest(byId[seriesId(c.fips, '05')]);
-      const lf    = latest(byId[seriesId(c.fips, '06')]);
-      const unemp = latest(byId[seriesId(c.fips, '04')]);
+async function fetchBLS(seriesIds) {
+  const year = new Date().getFullYear();
+  const r = await fetch('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seriesid: seriesIds, startyear: String(year-1), endyear: String(year) }),
+  });
+  if (!r.ok) throw new Error('BLS responded with ' + r.status);
+  const j = await r.json();
+  if (j.status !== 'REQUEST_SUCCEEDED') throw new Error((j.message||[]).join(' ') || j.status);
+  const map = {};
+  j.Results.series.forEach(s => { map[s.seriesID] = s.data[0] ?? null; });
+  return map;
+}
+
+async function loadLabor() {
+  try {
+    const batchA = [...COUNTIES.map(c => blsSeries(c.fips,'03')), ...COUNTIES.map(c => blsSeries(c.fips,'06'))];
+    const batchB = [...COUNTIES.map(c => blsSeries(c.fips,'05')), ...COUNTIES.map(c => blsSeries(c.fips,'04'))];
+    const [mapA, mapB] = await Promise.all([fetchBLS(batchA), fetchBLS(batchB)]);
+    const map = Object.assign({}, mapA, mapB);
+
+    const rows = COUNTIES.map(c => {
+      const rateRow  = map[blsSeries(c.fips,'03')];
+      const lfRow    = map[blsSeries(c.fips,'06')];
+      const empRow   = map[blsSeries(c.fips,'05')];
+      const unempRow = map[blsSeries(c.fips,'04')];
       return {
-        name:       c.name,
-        rate:       rate  ? parseFloat(rate.value)   : null,
-        employed:   emp   ? parseInt(emp.value, 10)   : null,
-        laborForce: lf    ? parseInt(lf.value, 10)    : null,
-        unemployed: unemp ? parseInt(unemp.value, 10) : null,
-        period:     rate  ? `${rate.periodName} ${rate.year}` : null,
+        name:  c.name,
+        rate:  rateRow  ? parseFloat(rateRow.value)   : null,
+        lf:    lfRow    ? parseInt(lfRow.value,10)     : null,
+        emp:   empRow   ? parseInt(empRow.value,10)    : null,
+        unemp: unempRow ? parseInt(unempRow.value,10)  : null,
+        period:rateRow  ? rateRow.periodName+' '+rateRow.year : null,
       };
     });
 
-    const period = data.find(d => d.period)?.period ?? '';
-    document.getElementById('data-period').textContent = period ? `Latest data: ${period}` : '';
+    const period = rows.find(r => r.period)?.period ?? '';
+    if (period) document.getElementById('data-period').textContent = 'Labor data: ' + period;
 
-    const totalLF    = data.reduce((s, d) => s + (d.laborForce  ?? 0), 0);
-    const totalEmp   = data.reduce((s, d) => s + (d.employed    ?? 0), 0);
-    const totalUnemp = data.reduce((s, d) => s + (d.unemployed  ?? 0), 0);
-    const avgRate    = totalLF > 0 ? (totalUnemp / totalLF) * 100 : null;
+    const totLF    = rows.reduce((s,r) => s+(r.lf??0), 0);
+    const totEmp   = rows.reduce((s,r) => s+(r.emp??0), 0);
+    const totUnemp = rows.reduce((s,r) => s+(r.unemp??0), 0);
+    const avgRate  = totLF > 0 ? (totUnemp/totLF)*100 : null;
 
-    setKpi('k-lf',    num(totalLF));
-    setKpi('k-emp',   num(totalEmp));
-    setKpi('k-unemp', num(totalUnemp));
-    setKpi('k-rate',  pct(avgRate));
+    setKpi('l-lf',    fmtNum(totLF));
+    setKpi('l-emp',   fmtNum(totEmp));
+    setKpi('l-unemp', fmtNum(totUnemp));
+    setKpi('l-rate',  fmtPct(avgRate));
 
-    document.getElementById('tbody').innerHTML = data.map(d => `
-      <tr>
-        <td class="county">${d.name}</td>
-        <td class="r">${num(d.laborForce)}</td>
-        <td class="r">${num(d.employed)}</td>
-        <td class="r">${num(d.unemployed)}</td>
-        <td class="rate">${rateChip(d.rate)}</td>
-      </tr>`).join('');
+    document.getElementById('labor-tbody').innerHTML = rows.map(r =>
+      '<tr><td class="bold">'+r.name+'</td><td class="r">'+fmtNum(r.lf)+'</td><td class="r">'+fmtNum(r.emp)+'</td><td class="r">'+fmtNum(r.unemp)+'</td><td class="r">'+rateChip(r.rate)+'</td></tr>'
+    ).join('');
 
-    barChart('chart-rate', data.map(d => d.name), data.map(d => d.rate), '%');
-    barChart('chart-lf',   data.map(d => d.name), data.map(d => d.laborForce), '');
+    makeChart('c-rate', rows.map(r=>r.name), rows.map(r=>r.rate), '%', '');
+    makeChart('c-lf',   rows.map(r=>r.name), rows.map(r=>r.lf),   '',  '');
 
-  } catch (err) {
-    console.error(err);
-    showError(err.message);
-    ['k-lf','k-emp','k-unemp','k-rate'].forEach(id => setKpi(id, '—'));
-    document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--gray-400)">Data unavailable</td></tr>';
+  } catch(err) {
+    console.error('Labor:', err);
+    showError('err-labor', err.message + '. View data at <a href="https://www.bls.gov/lau/" target="_blank">bls.gov/lau</a> or <a href="https://mn.gov/deed/data/data-tools/laus/" target="_blank">MN DEED</a>.');
+    ['l-lf','l-emp','l-unemp','l-rate'].forEach(id => setKpi(id, '—'));
+    document.getElementById('labor-tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Data unavailable</td></tr>';
   }
 }
 
-init();
+async function loadDemographics() {
+  try {
+    const fipsList = COUNTIES.map(c=>c.fips).join(',');
+    const vars = 'B01003_001E,B19013_001E,B01002_001E,B25064_001E';
+    const url = 'https://api.census.gov/data/2023/acs/acs5?get=NAME,'+vars+'&for=county:'+fipsList+'&in=state:27';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Census API ' + r.status);
+    const raw = await r.json();
+    const headers = raw[0];
+    const col = k => headers.indexOf(k);
+
+    const rows = raw.slice(1).map(row => {
+      const co = COUNTIES.find(c => c.fips === row[col('county')]);
+      return {
+        name:   co?.name ?? row[col('NAME')].split(',')[0],
+        pop:    parseInt(row[col('B01003_001E')],10),
+        income: parseInt(row[col('B19013_001E')],10),
+        age:    parseFloat(row[col('B01002_001E')]),
+        rent:   parseInt(row[col('B25064_001E')],10),
+      };
+    }).sort((a,b) => a.name.localeCompare(b.name));
+
+    const totPop  = rows.reduce((s,r) => s+(r.pop>0?r.pop:0), 0);
+    const avgInc  = rows.filter(r=>r.income>0).reduce((s,r)=>s+r.income,0) / rows.filter(r=>r.income>0).length;
+    const avgAge  = rows.filter(r=>r.age>0).reduce((s,r)=>s+r.age,0) / rows.filter(r=>r.age>0).length;
+    const avgRent = rows.filter(r=>r.rent>0).reduce((s,r)=>s+r.rent,0) / rows.filter(r=>r.rent>0).length;
+
+    setKpi('d-pop',  fmtNum(totPop));
+    setKpi('d-inc',  fmtUsd(Math.round(avgInc)));
+    setKpi('d-age',  fmtAge(avgAge));
+    setKpi('d-rent', fmtUsd(Math.round(avgRent)));
+
+    document.getElementById('demo-tbody').innerHTML = rows.map(r =>
+      '<tr><td class="bold">'+r.name+'</td><td class="r">'+fmtNum(r.pop)+'</td><td class="r">'+fmtUsd(r.income)+'</td><td class="r">'+fmtAge(r.age)+'</td><td class="r">'+fmtUsd(r.rent)+'</td></tr>'
+    ).join('');
+
+    makeChart('c-pop', rows.map(r=>r.name), rows.map(r=>r.pop), '', '');
+    makeChart('c-inc', rows.map(r=>r.name), rows.map(r=>r.income>0?r.income:null), '', '$');
+
+  } catch(err) {
+    console.error('Demographics:', err);
+    showError('err-demo', err.message + '. View data at <a href="https://data.census.gov" target="_blank">data.census.gov</a>.');
+    ['d-pop','d-inc','d-age','d-rent'].forEach(id => setKpi(id, '—'));
+    document.getElementById('demo-tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Data unavailable</td></tr>';
+  }
+}
+
+loadLabor();
+loadDemographics();
 </script>
 </body>
 </html>
