@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Southeast Minnesota Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:    #1a4f8a;
+      --blue-lt: #2d6dbf;
+      --green:   #2e7d46;
+      --amber:   #b45309;
+      --red:     #b91c1c;
+      --gray-50: #f8fafc;
+      --gray-100:#f1f5f9;
+      --gray-200:#e2e8f0;
+      --gray-500:#64748b;
+      --gray-700:#334155;
+      --gray-900:#0f172a;
+      --radius:  8px;
+      --shadow:  0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-lt) 100%);
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+    header p  { font-size: .85rem; opacity: .8; margin-top: 2px; }
+    #last-updated { font-size: .8rem; opacity: .7; white-space: nowrap; }
+
+    /* ── Layout ── */
+    main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    section + section { margin-top: 32px; }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-700);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gray-200);
+    }
+
+    /* ── KPI cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .kpi-card {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--blue);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .kpi-card.green  { border-color: var(--green); }
+    .kpi-card.amber  { border-color: var(--amber); }
+    .kpi-card.red    { border-color: var(--red); }
+    .kpi-label { font-size: .75rem; color: var(--gray-500); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .kpi-value { font-size: 1.9rem; font-weight: 800; color: var(--gray-900); line-height: 1.1; }
+    .kpi-sub   { font-size: .78rem; color: var(--gray-500); }
+    .kpi-value.loading { color: var(--gray-200); animation: pulse 1.4s ease-in-out infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Charts row ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .chart-card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .chart-card h3 { font-size: .9rem; font-weight: 700; color: var(--gray-700); margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 280px; }
+
+    /* ── Table ── */
+    .table-card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .table-card h3 { font-size: .9rem; font-weight: 700; color: var(--gray-700); padding: 16px 20px 0; margin-bottom: 12px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    thead th {
+      background: var(--gray-50);
+      color: var(--gray-500);
+      font-weight: 700;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    thead th.num { text-align: right; }
+    tbody tr:hover { background: var(--gray-50); }
+    tbody td { padding: 10px 16px; border-bottom: 1px solid var(--gray-200); color: var(--gray-700); }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody td.bold { font-weight: 700; color: var(--gray-900); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* bar-in-cell */
+    .bar-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .bar-bg { width: 80px; height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+    .bar-fill { height: 100%; border-radius: 4px; background: var(--blue-lt); }
+
+    /* ── Status / error banner ── */
+    #status-bar {
+      display: none;
+      background: #fffbeb;
+      border: 1px solid #fbbf24;
+      color: #92400e;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: .85rem;
+      margin-bottom: 16px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      font-size: .75rem;
+      color: var(--gray-500);
+      padding: 24px 16px;
+      border-top: 1px solid var(--gray-200);
+      margin-top: 40px;
+    }
+    footer a { color: var(--blue-lt); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Southeast Minnesota Dashboard</h1>
+    <p>Economic &amp; Demographic Indicators &mdash; 12-County Region</p>
+  </div>
+  <span id="last-updated">Loading&hellip;</span>
+</header>
+
+<main>
+  <div id="status-bar"></div>
+
+  <!-- KPIs -->
+  <section>
+    <div class="section-title">Region at a Glance</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Population</div>
+        <div class="kpi-value loading" id="kpi-pop">&mdash;</div>
+        <div class="kpi-sub">ACS 5-Year Estimate</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Median Household Income</div>
+        <div class="kpi-value loading" id="kpi-income">&mdash;</div>
+        <div class="kpi-sub">Region-weighted median</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Unemployment Rate</div>
+        <div class="kpi-value loading" id="kpi-unemp">&mdash;</div>
+        <div class="kpi-sub">From ACS labor data</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Median Age</div>
+        <div class="kpi-value loading" id="kpi-age">&mdash;</div>
+        <div class="kpi-sub">Region average</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Median Gross Rent</div>
+        <div class="kpi-value loading" id="kpi-rent">&mdash;</div>
+        <div class="kpi-sub">Per month</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Largest County</div>
+        <div class="kpi-value loading" style="font-size:1.3rem" id="kpi-largest">&mdash;</div>
+        <div class="kpi-sub">By population</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section>
+    <div class="section-title">County Profiles</div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Population by County</h3>
+        <div class="chart-wrap"><canvas id="chart-pop"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Median Household Income by County</h3>
+        <div class="chart-wrap"><canvas id="chart-income"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Unemployment Rate by County (%)</h3>
+        <div class="chart-wrap"><canvas id="chart-unemp"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Median Age by County</h3>
+        <div class="chart-wrap"><canvas id="chart-age"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Table -->
+  <section>
+    <div class="section-title">County Detail Table</div>
+    <div class="table-card">
+      <h3>All 12 Counties &mdash; Southeast Minnesota</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>County</th>
+              <th class="num">Population</th>
+              <th class="num">Median Income</th>
+              <th class="num">Unemp. Rate</th>
+              <th class="num">Median Age</th>
+              <th class="num">Median Rent</th>
+            </tr>
+          </thead>
+          <tbody id="county-table-body">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-500)">Loading county data&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Data: <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau ACS 5-Year Estimates</a>
+  &nbsp;&bull;&nbsp;
+  Counties: Dodge, Fillmore, Freeborn, Goodhue, Houston, Mower, Olmsted, Rice, Steele, Wabasha, Waseca, Winona
+  &nbsp;&bull;&nbsp;
+  Dashboard auto-refreshes daily
+</footer>
+
+<script>
+// ── SE Minnesota counties (FIPS state=27) ────────────────────────────────────
+const COUNTIES = [
+  { name: 'Dodge',    fips: '039' },
+  { name: 'Fillmore', fips: '045' },
+  { name: 'Freeborn', fips: '047' },
+  { name: 'Goodhue',  fips: '049' },
+  { name: 'Houston',  fips: '055' },
+  { name: 'Mower',    fips: '099' },
+  { name: 'Olmsted',  fips: '109' },
+  { name: 'Rice',     fips: '131' },
+  { name: 'Steele',   fips: '147' },
+  { name: 'Wabasha',  fips: '157' },
+  { name: 'Waseca',   fips: '161' },
+  { name: 'Winona',   fips: '169' },
+];
+
+// ACS variables
+// B01003_001E = total population
+// B19013_001E = median household income
+// B01002_001E = median age
+// B25064_001E = median gross rent
+// B23025_003E = civilian labor force
+// B23025_005E = unemployed
+const ACS_VARS = 'B01003_001E,B19013_001E,B01002_001E,B25064_001E,B23025_003E,B23025_005E';
+const ACS_YEAR = '2023';
+const STATE = '27';
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+const fmt = {
+  num:  v => v == null || v < 0 ? 'N/A' : Number(v).toLocaleString(),
+  usd:  v => v == null || v < 0 ? 'N/A' : '$' + Number(v).toLocaleString(),
+  pct:  v => v == null ? 'N/A' : v.toFixed(1) + '%',
+  age:  v => v == null || v < 0 ? 'N/A' : Number(v).toFixed(1),
+};
+
+function showStatus(msg) {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function setKpi(id, val) {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.classList.remove('loading');
+}
+
+// ── Fetch Census ACS ─────────────────────────────────────────────────────────
+async function fetchACS() {
+  const countyList = COUNTIES.map(c => c.fips).join(',');
+  const url =
+    `https://api.census.gov/data/${ACS_YEAR}/acs/acs5` +
+    `?get=NAME,${ACS_VARS}` +
+    `&for=county:${countyList}` +
+    `&in=state:${STATE}`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Census API ${res.status}`);
+  const rows = await res.json(); // first row = headers
+  const headers = rows[0];
+
+  const idx = k => headers.indexOf(k);
+  const iName  = idx('NAME');
+  const iPop   = idx('B01003_001E');
+  const iInc   = idx('B19013_001E');
+  const iAge   = idx('B01002_001E');
+  const iRent  = idx('B25064_001E');
+  const iLF    = idx('B23025_003E');
+  const iUnemp = idx('B23025_005E');
+  const iCo    = idx('county');
+
+  return rows.slice(1).map(row => {
+    const co = COUNTIES.find(c => c.fips === row[iCo]);
+    const lf    = parseFloat(row[iLF]);
+    const unemp = parseFloat(row[iUnemp]);
+    return {
+      name:       co ? co.name : row[iName].split(',')[0],
+      population: parseInt(row[iPop], 10),
+      income:     parseInt(row[iInc], 10),
+      age:        parseFloat(row[iAge]),
+      rent:       parseInt(row[iRent], 10),
+      unempRate:  (lf > 0) ? (unemp / lf) * 100 : null,
+      fips:       row[iCo],
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ── Chart helpers ─────────────────────────────────────────────────────────────
+const PALETTE = [
+  '#1a4f8a','#2d6dbf','#3b82c4','#5b9bd5',
+  '#2e7d46','#4caf6e','#6abf85','#8dd4a2',
+  '#b45309','#d97706','#f59e0b','#fbbf24',
+];
+
+function makeBarChart(canvasId, labels, data, labelStr, color, prefix = '', suffix = '') {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: labelStr,
+        data,
+        backgroundColor: PALETTE,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => prefix + ctx.parsed.y.toLocaleString() + suffix
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: {
+          grid: { color: '#e2e8f0' },
+          ticks: {
+            font: { size: 10 },
+            callback: v => prefix + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) + suffix
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── Table render ──────────────────────────────────────────────────────────────
+function renderTable(data) {
+  const maxPop = Math.max(...data.map(d => d.population));
+  const tbody = document.getElementById('county-table-body');
+  tbody.innerHTML = data.map(d => {
+    const barPct = Math.round((d.population / maxPop) * 100);
+    return `
+      <tr>
+        <td class="bold">${d.name}</td>
+        <td class="num">
+          <div class="bar-cell">
+            <span>${fmt.num(d.population)}</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:${barPct}%"></div></div>
+          </div>
+        </td>
+        <td class="num">${fmt.usd(d.income)}</td>
+        <td class="num">${fmt.pct(d.unempRate)}</td>
+        <td class="num">${fmt.age(d.age)}</td>
+        <td class="num">${fmt.usd(d.rent)}</td>
+      </tr>`;
+  }).join('');
+}
+
+// ── KPI summary ───────────────────────────────────────────────────────────────
+function renderKPIs(data) {
+  const totalPop  = data.reduce((s, d) => s + (d.population || 0), 0);
+  const avgIncome = data.reduce((s, d) => s + (d.income > 0 ? d.income : 0), 0) /
+                    data.filter(d => d.income > 0).length;
+  const avgUnemp  = data.reduce((s, d) => s + (d.unempRate ?? 0), 0) /
+                    data.filter(d => d.unempRate != null).length;
+  const avgAge    = data.reduce((s, d) => s + (d.age > 0 ? d.age : 0), 0) /
+                    data.filter(d => d.age > 0).length;
+  const avgRent   = data.reduce((s, d) => s + (d.rent > 0 ? d.rent : 0), 0) /
+                    data.filter(d => d.rent > 0).length;
+  const largest   = data.reduce((a, b) => (b.population > a.population ? b : a));
+
+  setKpi('kpi-pop',     fmt.num(totalPop));
+  setKpi('kpi-income',  fmt.usd(Math.round(avgIncome)));
+  setKpi('kpi-unemp',   fmt.pct(avgUnemp));
+  setKpi('kpi-age',     fmt.age(avgAge));
+  setKpi('kpi-rent',    fmt.usd(Math.round(avgRent)));
+  setKpi('kpi-largest', largest.name);
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function init() {
+  document.getElementById('last-updated').textContent =
+    'Updated ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  try {
+    const data = await fetchACS();
+
+    renderKPIs(data);
+    renderTable(data);
+
+    const names   = data.map(d => d.name);
+    const pops    = data.map(d => d.population);
+    const incomes = data.map(d => d.income > 0 ? d.income : null);
+    const unemps  = data.map(d => d.unempRate != null ? +d.unempRate.toFixed(2) : null);
+    const ages    = data.map(d => d.age > 0 ? d.age : null);
+
+    makeBarChart('chart-pop',    names, pops,    'Population',    null, '',  '');
+    makeBarChart('chart-income', names, incomes, 'Median Income', null, '$', '');
+    makeBarChart('chart-unemp', names, unemps,  'Unemp. Rate',   null, '',  '%');
+    makeBarChart('chart-age',   names, ages,    'Median Age',    null, '',  ' yrs');
+
+  } catch (err) {
+    console.error(err);
+    showStatus(
+      `⚠ Could not load live Census data (${err.message}). ` +
+      `Check your network or try opening the dashboard from a web server. ` +
+      `Census API: https://api.census.gov`
+    );
+    // Show placeholder skeletons so the page still looks useful
+    ['kpi-pop','kpi-income','kpi-unemp','kpi-age','kpi-rent','kpi-largest']
+      .forEach(id => setKpi(id, '—'));
+    document.getElementById('county-table-body').innerHTML =
+      '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-500)">Data unavailable — see warning above.</td></tr>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
