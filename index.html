@@ -493,7 +493,7 @@ function blsSeries(countyFips, measure) {
 
 async function fetchBLS(seriesIds) {
   const year = new Date().getFullYear();
-  const r = await fetch('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
+  const r = await fetch('/api/bls', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ seriesid: seriesIds, startyear: String(year - 1), endyear: String(year) }),
