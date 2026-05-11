@@ -230,22 +230,22 @@
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-label">Total Labor Force</div>
-          <div class="kpi-value loading" id="l-lf">&mdash;&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="l-lf">———</div>
           <div class="kpi-note" id="l-lf-note">All 11 counties</div>
         </div>
         <div class="kpi green">
           <div class="kpi-label">Total Employed</div>
-          <div class="kpi-value loading" id="l-emp">&mdash;&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="l-emp">———</div>
           <div class="kpi-note" id="l-emp-note">People currently working</div>
         </div>
         <div class="kpi amber">
           <div class="kpi-label">Total Unemployed</div>
-          <div class="kpi-value loading" id="l-unemp">&mdash;&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="l-unemp">———</div>
           <div class="kpi-note" id="l-unemp-note">Actively seeking work</div>
         </div>
         <div class="kpi amber">
           <div class="kpi-label">Avg Unemployment Rate</div>
-          <div class="kpi-value loading" id="l-rate">&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="l-rate">——</div>
           <div class="kpi-note" id="l-rate-note">Region-wide</div>
         </div>
       </div>
@@ -314,22 +314,22 @@
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-label">Total Population</div>
-          <div class="kpi-value loading" id="d-pop">&mdash;&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="d-pop">———</div>
           <div class="kpi-note">2023 ACS 5-Year Estimate</div>
         </div>
         <div class="kpi green">
           <div class="kpi-label">Median Household Income</div>
-          <div class="kpi-value loading" id="d-inc">&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="d-inc">——</div>
           <div class="kpi-note">2023 ACS 5-Year Estimate</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Median Age</div>
-          <div class="kpi-value loading" id="d-age">&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="d-age">——</div>
           <div class="kpi-note">2023 ACS 5-Year Estimate</div>
         </div>
         <div class="kpi amber">
           <div class="kpi-label">Median Gross Rent</div>
-          <div class="kpi-value loading" id="d-rent">&mdash;&mdash;</div>
+          <div class="kpi-value loading" id="d-rent">——</div>
           <div class="kpi-note">2023 ACS 5-Year Estimate &middot; per month</div>
         </div>
       </div>
@@ -508,15 +508,19 @@ async function fetchBLS(seriesIds) {
 
 async function loadLabor() {
   try {
-    // Fetch counts only — the rate series (03) is annual-only from BLS.
-    // We calculate the monthly rate ourselves from unemployed (04) / labor force (06).
-    const batch = [
-      ...COUNTIES.map(c => blsSeries(c.fips, '06')), // labor force
-      ...COUNTIES.map(c => blsSeries(c.fips, '05')), // employed
-      ...COUNTIES.map(c => blsSeries(c.fips, '04')), // unemployed
+    // BLS public API allows 25 series per request (unregistered).
+    // 11 counties × 3 measures = 33 series, so we split into two batches.
+    const half = Math.ceil(COUNTIES.length / 2);
+    const makeSeriesFor = (slice) => [
+      ...slice.map(c => blsSeries(c.fips, '06')), // labor force
+      ...slice.map(c => blsSeries(c.fips, '05')), // employed
+      ...slice.map(c => blsSeries(c.fips, '04')), // unemployed
     ];
-
-    const map = await fetchBLS(batch);
+    const [map1, map2] = await Promise.all([
+      fetchBLS(makeSeriesFor(COUNTIES.slice(0, half))),
+      fetchBLS(makeSeriesFor(COUNTIES.slice(half))),
+    ]);
+    const map = { ...map1, ...map2 };
 
     const rows = COUNTIES.map(c => {
       const lfRow    = map[blsSeries(c.fips, '06')];
@@ -547,7 +551,7 @@ async function loadLabor() {
         if (el) el.textContent += ` · ${period}`;
       });
       const tp = document.getElementById('labor-table-period');
-      if (tp) tp.innerHTML = tp.innerHTML.replace('&mdash; same data', `&mdash; ${period} &mdash; same data`);
+      if (tp) tp.innerHTML = tp.innerHTML.replace('— same data', `— ${period} — same data`);
     }
 
     // KPIs
