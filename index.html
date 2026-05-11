@@ -217,6 +217,7 @@
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="labor">Labor Market</button>
   <button class="tab-btn" data-tab="demographics">Demographics</button>
+  <button class="tab-btn" data-tab="wages">Wages</button>
 </div>
 
 <main>
@@ -383,6 +384,89 @@
         <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau American Community Survey (ACS)</a>
         5-Year Estimates — population, income, age, and housing data at the county level.
         ACS estimates are updated annually and reflect a 5-year average.
+      </div>
+    </section>
+  </div>
+
+
+  <!-- ══ WAGES TAB ══ -->
+  <div class="tab-panel" id="tab-wages">
+    <div class="error-bar" id="err-wages"></div>
+
+    <section>
+      <div class="section-label">Region Summary</div>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Avg Median Earnings</div>
+          <div class="kpi-value loading" id="w-earn">——</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">Male Median Earnings</div>
+          <div class="kpi-value loading" id="w-male">——</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Female Median Earnings</div>
+          <div class="kpi-value loading" id="w-female">——</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">Gender Pay Gap</div>
+          <div class="kpi-value loading" id="w-gap">——</div>
+          <div class="kpi-note">Female earnings as % of male</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">County Comparison</div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>Median Annual Earnings by County</h3>
+          <small>2023 ACS 5-Year Estimates &mdash; all workers 16+</small>
+          <div class="chart-wrap"><canvas id="c-earn"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h3>Gender Pay Gap by County</h3>
+          <small>2023 ACS 5-Year Estimates &mdash; female earnings as % of male</small>
+          <div class="chart-wrap"><canvas id="c-gap"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">County Detail</div>
+      <div class="table-box">
+        <div class="table-box-header">
+          <h3>Wages &amp; Earnings &mdash; All 11 Counties</h3>
+          <p>Source: <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau ACS 5-Year Estimates</a> &mdash; 2023</p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>County</th>
+                <th class="r">Median Earnings</th>
+                <th class="r">Male Earnings</th>
+                <th class="r">Female Earnings</th>
+                <th class="r">Pay Gap</th>
+              </tr>
+            </thead>
+            <tbody id="wages-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="source-note">
+        <strong>Data source:</strong>
+        <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau American Community Survey (ACS)</a>
+        5-Year Estimates &mdash; median annual earnings for workers 16 and older with earnings in the past 12 months.
+        Pay gap shows female median earnings as a percentage of male median earnings.
       </div>
     </section>
   </div>
@@ -657,9 +741,76 @@ async function loadDemographics() {
   }
 }
 
+// ── Census ACS Wages ──────────────────────────────────────────────────────────
+// B20002_001E = median earnings, all workers 16+
+// B20002_002E = median earnings, male
+// B20002_003E = median earnings, female
+async function loadWages() {
+  try {
+    const fipsList = COUNTIES.map(c => c.fips).join(',');
+    const vars = 'B20002_001E,B20002_002E,B20002_003E';
+    const url = `https://api.census.gov/data/2023/acs/acs5?get=NAME,${vars}&for=county:${fipsList}&in=state:27`;
+
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`Census API ${r.status}`);
+    const raw = await r.json();
+    const headers = raw[0];
+
+    const col = k => headers.indexOf(k);
+    const rows = raw.slice(1).map(row => {
+      const co = COUNTIES.find(c => c.fips === row[col('county')]);
+      const earn   = parseInt(row[col('B20002_001E')], 10);
+      const male   = parseInt(row[col('B20002_002E')], 10);
+      const female = parseInt(row[col('B20002_003E')], 10);
+      return {
+        name:   co?.name ?? row[col('NAME')].split(',')[0],
+        earn:   earn   > 0 ? earn   : null,
+        male:   male   > 0 ? male   : null,
+        female: female > 0 ? female : null,
+        gap:    (male > 0 && female > 0) ? (female / male) * 100 : null,
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+
+    // KPIs
+    const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+    const avgEarn   = avg(rows.filter(r => r.earn).map(r => r.earn));
+    const avgMale   = avg(rows.filter(r => r.male).map(r => r.male));
+    const avgFemale = avg(rows.filter(r => r.female).map(r => r.female));
+    const avgGap    = (avgMale && avgFemale) ? (avgFemale / avgMale) * 100 : null;
+
+    setKpi('w-earn',   fmtUsd(Math.round(avgEarn)));
+    setKpi('w-male',   fmtUsd(Math.round(avgMale)));
+    setKpi('w-female', fmtUsd(Math.round(avgFemale)));
+    setKpi('w-gap',    fmtPct(avgGap));
+
+    // Table
+    document.getElementById('wages-tbody').innerHTML = rows.map(r => `
+      <tr>
+        <td class="bold">${r.name}</td>
+        <td class="r">${fmtUsd(r.earn)}</td>
+        <td class="r">${fmtUsd(r.male)}</td>
+        <td class="r">${fmtUsd(r.female)}</td>
+        <td class="r">${r.gap != null ? fmtPct(r.gap) : '—'}</td>
+      </tr>`).join('');
+
+    // Charts
+    makeChart('c-earn', rows.map(r => r.name), rows.map(r => r.earn),  '', '$');
+    makeChart('c-gap',  rows.map(r => r.name), rows.map(r => r.gap),   '%', '');
+
+  } catch (err) {
+    console.error('Wages:', err);
+    showError('err-wages', `${err.message}. You can view Census data at
+      <a href="https://data.census.gov" target="_blank">data.census.gov</a>.`);
+    ['w-earn','w-male','w-female','w-gap'].forEach(id => setKpi(id, '—'));
+    document.getElementById('wages-tbody').innerHTML =
+      '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Data unavailable</td></tr>';
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadLabor();
 loadDemographics();
+loadWages();
 </script>
 </body>
 </html>
