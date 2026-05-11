@@ -231,22 +231,22 @@
         <div class="kpi">
           <div class="kpi-label">Total Labor Force</div>
           <div class="kpi-value loading" id="l-lf">———</div>
-          <div class="kpi-note">All 11 counties</div>
+          <div class="kpi-note" id="l-lf-note">All 11 counties</div>
         </div>
         <div class="kpi green">
           <div class="kpi-label">Total Employed</div>
           <div class="kpi-value loading" id="l-emp">———</div>
-          <div class="kpi-note">People currently working</div>
+          <div class="kpi-note" id="l-emp-note">People currently working</div>
         </div>
         <div class="kpi amber">
           <div class="kpi-label">Total Unemployed</div>
           <div class="kpi-value loading" id="l-unemp">———</div>
-          <div class="kpi-note">Actively seeking work</div>
+          <div class="kpi-note" id="l-unemp-note">Actively seeking work</div>
         </div>
         <div class="kpi amber">
           <div class="kpi-label">Avg Unemployment Rate</div>
           <div class="kpi-value loading" id="l-rate">——</div>
-          <div class="kpi-note">Region-wide</div>
+          <div class="kpi-note" id="l-rate-note">Region-wide</div>
         </div>
       </div>
     </section>
@@ -256,12 +256,12 @@
       <div class="chart-grid">
         <div class="chart-box">
           <h3>Unemployment Rate by County</h3>
-          <small>Not seasonally adjusted &mdash; latest month</small>
+          <small id="c-rate-period">Not seasonally adjusted &mdash; latest month</small>
           <div class="chart-wrap"><canvas id="c-rate"></canvas></div>
         </div>
         <div class="chart-box">
           <h3>Labor Force by County</h3>
-          <small>Total residents employed or seeking work</small>
+          <small id="c-lf-period">Total residents employed or seeking work</small>
           <div class="chart-wrap"><canvas id="c-lf"></canvas></div>
         </div>
       </div>
@@ -272,7 +272,7 @@
       <div class="table-box">
         <div class="table-box-header">
           <h3>Labor Market — All 11 Counties</h3>
-          <p>Source: <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener">Bureau of Labor Statistics LAUS</a> &mdash; same data MN DEED publishes</p>
+          <p id="labor-table-period">Source: <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener">Bureau of Labor Statistics LAUS</a> &mdash; same data MN DEED publishes</p>
         </div>
         <div class="table-scroll">
           <table>
@@ -315,22 +315,22 @@
         <div class="kpi">
           <div class="kpi-label">Total Population</div>
           <div class="kpi-value loading" id="d-pop">———</div>
-          <div class="kpi-note">ACS 5-Year Estimate</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate</div>
         </div>
         <div class="kpi green">
           <div class="kpi-label">Median Household Income</div>
           <div class="kpi-value loading" id="d-inc">——</div>
-          <div class="kpi-note">Region average</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Median Age</div>
           <div class="kpi-value loading" id="d-age">——</div>
-          <div class="kpi-note">Region average</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate</div>
         </div>
         <div class="kpi amber">
           <div class="kpi-label">Median Gross Rent</div>
           <div class="kpi-value loading" id="d-rent">——</div>
-          <div class="kpi-note">Per month</div>
+          <div class="kpi-note">2023 ACS 5-Year Estimate · per month</div>
         </div>
       </div>
     </section>
@@ -340,12 +340,12 @@
       <div class="chart-grid">
         <div class="chart-box">
           <h3>Population by County</h3>
-          <small>ACS 5-Year Estimates</small>
+          <small>2023 ACS 5-Year Estimates</small>
           <div class="chart-wrap"><canvas id="c-pop"></canvas></div>
         </div>
         <div class="chart-box">
           <h3>Median Household Income by County</h3>
-          <small>ACS 5-Year Estimates</small>
+          <small>2023 ACS 5-Year Estimates</small>
           <div class="chart-wrap"><canvas id="c-inc"></canvas></div>
         </div>
       </div>
@@ -356,7 +356,7 @@
       <div class="table-box">
         <div class="table-box-header">
           <h3>Demographics — All 11 Counties</h3>
-          <p>Source: <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau ACS 5-Year Estimates</a></p>
+          <p>Source: <a href="https://www.census.gov/programs-surveys/acs" target="_blank" rel="noopener">U.S. Census Bureau ACS 5-Year Estimates</a> &mdash; 2023</p>
         </div>
         <div class="table-scroll">
           <table>
@@ -536,7 +536,19 @@ async function loadLabor() {
 
     // Period
     const period = rows.find(r => r.period)?.period ?? '';
-    if (period) document.getElementById('data-period').textContent = `Labor data: ${period}`;
+    if (period) {
+      document.getElementById('data-period').textContent = `Labor data: ${period}`;
+      ['l-lf-note','l-emp-note','l-unemp-note','l-rate-note'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent += ` · ${period}`;
+      });
+      ['c-rate-period','c-lf-period'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent += ` · ${period}`;
+      });
+      const tp = document.getElementById('labor-table-period');
+      if (tp) tp.innerHTML = tp.innerHTML.replace('&mdash; same data', `&mdash; ${period} &mdash; same data`);
+    }
 
     // KPIs
     const totLF    = rows.reduce((s, r) => s + (r.lf    ?? 0), 0);
