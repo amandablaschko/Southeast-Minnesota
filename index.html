@@ -508,31 +508,29 @@ async function fetchBLS(seriesIds) {
 
 async function loadLabor() {
   try {
-    // Split into two requests — BLS free tier allows 25 series per call
-    const batchA = [
-      ...COUNTIES.map(c => blsSeries(c.fips, '03')), // rate
+    // Fetch counts only — the rate series (03) is annual-only from BLS.
+    // We calculate the monthly rate ourselves from unemployed (04) / labor force (06).
+    const batch = [
       ...COUNTIES.map(c => blsSeries(c.fips, '06')), // labor force
-    ];
-    const batchB = [
       ...COUNTIES.map(c => blsSeries(c.fips, '05')), // employed
       ...COUNTIES.map(c => blsSeries(c.fips, '04')), // unemployed
     ];
 
-    const [mapA, mapB] = await Promise.all([fetchBLS(batchA), fetchBLS(batchB)]);
-    const map = { ...mapA, ...mapB };
+    const map = await fetchBLS(batch);
 
     const rows = COUNTIES.map(c => {
-      const rateRow  = map[blsSeries(c.fips, '03')];
       const lfRow    = map[blsSeries(c.fips, '06')];
       const empRow   = map[blsSeries(c.fips, '05')];
       const unempRow = map[blsSeries(c.fips, '04')];
+      const lf    = lfRow    ? parseInt(lfRow.value, 10)    : null;
+      const unemp = unempRow ? parseInt(unempRow.value, 10) : null;
       return {
-        name:      c.name,
-        rate:      rateRow  ? parseFloat(rateRow.value)   : null,
-        lf:        lfRow    ? parseInt(lfRow.value, 10)    : null,
-        emp:       empRow   ? parseInt(empRow.value, 10)   : null,
-        unemp:     unempRow ? parseInt(unempRow.value, 10) : null,
-        period:    rateRow  ? `${rateRow.periodName} ${rateRow.year}` : null,
+        name:   c.name,
+        rate:   (lf && unemp) ? (unemp / lf) * 100 : null,
+        lf,
+        emp:    empRow ? parseInt(empRow.value, 10) : null,
+        unemp,
+        period: lfRow  ? `${lfRow.periodName} ${lfRow.year}` : null,
       };
     });
 
