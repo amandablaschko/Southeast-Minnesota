@@ -272,6 +272,15 @@
     </section>
 
     <section>
+      <div class="section-label">Labor Force Trend &mdash; Southeast Minnesota</div>
+      <div class="chart-box">
+        <h3>Annual Labor Force Statistics &mdash; 11-County Region</h3>
+        <small>2015–2025 annual averages &middot; BLS LAUS &middot; Bars show employed &amp; unemployed; line shows unemployment rate</small>
+        <div class="chart-wrap" style="height:300px"><canvas id="c-trend"></canvas></div>
+      </div>
+    </section>
+
+    <section>
       <div class="section-label">County Comparison</div>
       <div class="chart-grid">
         <div class="chart-box">
@@ -687,6 +696,138 @@ async function loadLabor() {
   }
 }
 
+// ── BLS LAUS Annual Trend ─────────────────────────────────────────────────────
+async function loadLaborTrend() {
+  try {
+    const half = Math.ceil(COUNTIES.length / 2);
+    const makeSeriesFor = (slice) => [
+      ...slice.map(c => blsSeries(c.fips, '06')),
+      ...slice.map(c => blsSeries(c.fips, '05')),
+      ...slice.map(c => blsSeries(c.fips, '04')),
+    ];
+
+    const fetchAnnual = async (seriesIds) => {
+      const r = await fetch('/api/bls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seriesid: seriesIds, startyear: '2015', endyear: '2025' }),
+      });
+      if (!r.ok) throw new Error(`BLS ${r.status}`);
+      const j = await r.json();
+      if (j.status !== 'REQUEST_SUCCEEDED') throw new Error(j.message?.join(' ') || j.status);
+      const map = {};
+      j.Results.series.forEach(s => {
+        map[s.seriesID] = {};
+        s.data.forEach(d => {
+          if (d.period === 'M13') map[s.seriesID][d.year] = parseInt(d.value, 10);
+        });
+      });
+      return map;
+    };
+
+    const [map1, map2] = await Promise.all([
+      fetchAnnual(makeSeriesFor(COUNTIES.slice(0, half))),
+      fetchAnnual(makeSeriesFor(COUNTIES.slice(half))),
+    ]);
+    const map = { ...map1, ...map2 };
+
+    const years = [];
+    for (let y = 2015; y <= 2025; y++) years.push(String(y));
+
+    const empData = [], unempData = [], rateData = [];
+    years.forEach(yr => {
+      let totLF = 0, totEmp = 0, totUnemp = 0, anyData = false;
+      COUNTIES.forEach(c => {
+        const lf    = map[blsSeries(c.fips, '06')]?.[yr];
+        const emp   = map[blsSeries(c.fips, '05')]?.[yr];
+        const unemp = map[blsSeries(c.fips, '04')]?.[yr];
+        if (lf != null) { totLF += lf; anyData = true; }
+        if (emp   != null) totEmp   += emp;
+        if (unemp != null) totUnemp += unemp;
+      });
+      empData.push(anyData ? totEmp   : null);
+      unempData.push(anyData ? totUnemp : null);
+      rateData.push(anyData && totLF ? (totUnemp / totLF) * 100 : null);
+    });
+
+    const ctx = document.getElementById('c-trend');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Employed',
+            data: empData,
+            backgroundColor: '#4caf6e',
+            stack: 'lf',
+            order: 2,
+          },
+          {
+            type: 'bar',
+            label: 'Unemployed',
+            data: unempData,
+            backgroundColor: '#f59e0b',
+            stack: 'lf',
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'Unemployment Rate',
+            data: rateData,
+            borderColor: '#1a4f8a',
+            backgroundColor: 'rgba(26,79,138,0.15)',
+            yAxisID: 'yRate',
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: '#1a4f8a',
+            borderWidth: 2,
+            order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index' },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+          tooltip: {
+            callbacks: {
+              label: c => c.dataset.yAxisID === 'yRate'
+                ? ` Unemployment Rate: ${c.parsed.y.toFixed(1)}%`
+                : ` ${c.dataset.label}: ${Number(c.parsed.y).toLocaleString()}`,
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            stacked: true,
+            grid: { color: '#e2e8f0' },
+            ticks: {
+              font: { size: 10 },
+              callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
+            },
+            title: { display: true, text: 'People', font: { size: 10 }, color: '#64748b' },
+          },
+          yRate: {
+            position: 'right',
+            grid: { display: false },
+            min: 0,
+            ticks: { font: { size: 10 }, callback: v => v.toFixed(1) + '%' },
+            title: { display: true, text: 'Rate (%)', font: { size: 10 }, color: '#64748b' },
+          },
+        },
+      },
+    });
+  } catch (err) {
+    console.error('Labor trend:', err);
+  }
+}
+
 // ── Census ACS ────────────────────────────────────────────────────────────────
 // B01003_001E = population
 // B19013_001E = median household income
@@ -823,6 +964,7 @@ renderWages();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadLabor();
+loadLaborTrend();
 loadDemographics();
 </script>
 </body>
